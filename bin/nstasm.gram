@@ -1,0 +1,284 @@
+grammar NSTAssembler {
+    options {
+        Axiom = "program";
+        Separator = "SEPARATOR";
+        CompilationMode = "Source";
+        Runtime = "Java";
+        Namespace = "notsotiny.nstasm.parser";
+        AccessModifier = "Public";
+    }
+
+    terminals {
+        NEWLINE -> U+000D
+                 | U+000A
+                 | U+000D U+000A
+                 | U+2028
+                 | U+2029;
+        
+        fragment WHITESPACE -> U+0020
+                             | U+0009
+                             | U+000B
+                             | U+000C;
+        fragment COMMENT    -> ';' (.* - (.* NEWLINE .*));
+        SEPARATOR   -> (WHITESPACE | COMMENT)+;
+
+        fragment NA -> 'a' | 'A';
+        fragment NB -> 'b' | 'B';
+        fragment NC -> 'c' | 'C';
+        fragment ND -> 'd' | 'D';
+        fragment NE -> 'e' | 'E';
+        fragment NF -> 'f' | 'F';
+        fragment NG -> 'g' | 'G';
+        fragment NH -> 'h' | 'H';
+        fragment NI -> 'i' | 'I';
+        fragment NJ -> 'j' | 'J';
+        fragment NK -> 'k' | 'K';
+        fragment NL -> 'l' | 'L';
+        fragment NM -> 'm' | 'M';
+        fragment NN -> 'n' | 'N';
+        fragment NO -> 'o' | 'O';
+        fragment NP -> 'p' | 'P';
+        fragment NQ -> 'q' | 'Q';
+        fragment NR -> 'r' | 'R';
+        fragment NS -> 's' | 'S';
+        fragment NT -> 't' | 'T';
+        fragment NU -> 'u' | 'U';
+        fragment NV -> 'v' | 'V';
+        fragment NW -> 'w' | 'W';
+        fragment NX -> 'x' | 'X';
+        fragment NY -> 'y' | 'Y';
+        fragment NZ -> 'z' | 'Z';
+
+        fragment ALPHA          -> [a-zA-Z]+;
+		fragment ALPHANUMERIC   -> [a-zA-Z0-9]+;
+        fragment BINARY_DIGITS  -> [0-1]+;
+		fragment OCTAL_DIGITS   -> [0-7]+;
+		fragment DECIMAL_DIGITS -> [0-9]+;
+		fragment HEX_DIGITS     -> [0-9a-fA-F];
+
+        NAME    -> (ALPHA | '_') (ALPHANUMERIC | '_' | '.')*;
+        INTEGER -> '0b' BINARY_DIGITS (BINARY_DIGITS | '_')*
+                 | '0o' OCTAL_DIGITS (OCTAL_DIGITS | '_')*
+                 | '0d'? DECIMAL_DIGITS (DECIMAL_DIGITS | '_')*
+                 | '0x' HEX_DIGITS (HEX_DIGITS | '_')*;
+        
+        LOCAL       -> '.' NAME;
+        MACROLOCAL  -> '%%' NAME;
+        
+        KW_REPEAT       -> '%'? NR NE NP NE NA NT;
+        KW_MACRO        -> '%' NM NA NC NR NO;
+        KW_ENDMACRO     -> '%' NE NN ND NM NA NC NR NO;
+        KW_DEFINE       -> '%' ND NE NF NI NN NE;
+        KW_INCLUDE      -> '%' NI NN NC NL NU ND NE;
+        KW_LIBNAME      -> '%' NL NI NB NN NA NM NE;
+        KW_ORG          -> '%' NO NR NG;
+		KW_NLO			-> '%' NN NL NO;
+		KW_PRIVILEGED	-> '%' NP NR NI NV NI NL (NA | NE) NG NE ND;
+        KW_BYTE         -> NB NY NT NE;
+        KW_WORD         -> NW NO NR ND;
+        KW_PTR          -> NP NT NR | ND NW NO NR ND;
+        KW_DB           -> ND NB;
+        KW_DW           -> ND NW;
+        KW_DP           -> ND NP | ND ND;
+        KW_RESB         -> NR NE NS NB;
+        KW_RESW         -> NR NE NS NW;
+        KW_RESP         -> NR NE NS NP | NR NE NS ND;
+        KW_AS           -> NA NS;
+		
+		OP_OR	-> '|';
+		OP_XOR	-> '^';
+		OP_AND	-> '&';
+		OP_SHL	-> '<<';
+		OP_SHR	-> '>>';
+		OP_SAR	-> '>>>';
+		OP_ADD	-> '+';
+		OP_SUB	-> '-';
+		OP_MUL	-> '*';
+		OP_DIV	-> '/';
+		OP_MOD	-> '%';
+		OP_NOT	-> '!';
+		OP_CREL	-> '$';
+		OP_PREL	-> '@';
+		OP_SREL -> '#';
+
+        fragment COND       -> NC | NN NC | NS | NN NS | NO | NN NO | NZ | NN NZ | NE | NN NE
+                             | NA | NN NA | NB | NN NB | NA NE | NN NA NE | NB NE | NN NB NE
+                             | NG | NN NG | NL | NN NL | NG NE | NN NG NE | NL NE | NN NL NE;
+        fragment SUFFIX     -> '.' (NA | NE) ('4' | '8');
+        fragment CONDITION  -> COND SUFFIX?;
+
+        fragment KW_OPCODE  -> NM NO NV NW
+                             | NM NO NV NS
+                             | NM NO NV NZ
+                             | NM NO NV
+                             | NX NC NH NG
+                             | NX NC NH NG NW
+                             | NL NE NA
+                             | NP NU NS NH
+                             | NP NU NS NH NW
+                             | NR NP NU NS NH
+                             | NR NP NU NS NH NW
+                             | NP NU NS NH NA
+                             | NP NO NP
+                             | NP NO NP NW
+                             | NR NP NO NP
+                             | NR NP NO NP NW
+                             | NP NO NP NA
+                             | NC NM NP
+                             | NC NM NP NW
+                             | NN NO NT
+                             | NA NN ND
+                             | NO NR
+                             | NX NO NR
+                             | NT NS NT
+                             | NA ND ND
+                             | NA ND ND NW
+                             | NA ND NC
+                             | NA ND NC NW
+                             | NA NA ND NJ
+                             | NS NU NB
+                             | NS NU NB NW
+                             | NS NB NB
+                             | NS NB NB NW
+                             | NS NA ND NJ
+                             | NI NN NC
+                             | NI NN NC NW
+                             | NI NC NC
+                             | NI NC NC NW
+                             | ND NE NC
+                             | ND NE NC NW
+                             | ND NC NC
+                             | ND NC NC NW
+                             | NS NH NL
+                             | NS NH NR
+                             | NS NA NR
+                             | NR NO NL
+                             | NR NO NR
+                             | NR NC NL
+                             | NR NC NR
+                             | NN NO NP
+                             | NN NE NG
+                             | NM NU NL
+                             | NM NU NL NH
+                             | NM NU NL NS
+                             | NM NU NL NS NH
+                             | ND NI NV
+                             | ND NI NV NS
+                             | ND NI NV NM
+                             | ND NI NV NM NS
+                             | NC NA NL NL
+                             | NC NA NL NL NA
+                             | NR NE NT
+                             | NI NR NE NT
+                             | NJ NM NP
+                             | NJ NM NP NA
+                             | NI NN NT
+                             | NH NL NT;
+        
+        fragment KW_COND_OP -> NC NM NO NV
+                             | NC NM NO NV NW
+                             | NJ;
+
+        fragment P_OPCODE   -> NP KW_OPCODE ('4' | '8');
+        fragment PC_OPCODE  -> NP KW_COND_OP ('4' | '8');
+        fragment C_OP       -> (KW_COND_OP | PC_OPCODE) CONDITION;
+		
+		REGISTER    -> NA NL
+                     | NB NL
+                     | NC NL
+                     | ND NL
+                     | NA NH
+                     | NB NH
+                     | NC NH
+                     | ND NH
+                     | NA
+                     | NB
+                     | NC
+                     | ND
+                     | NI
+                     | NJ
+                     | NK
+                     | NL
+                     | ND ':' NA
+                     | NB ':' NC
+                     | NJ ':' NI
+                     | NL ':' NK
+                     | NX NP
+                     | NY NP
+                     | NB NP
+                     | NS NP
+                     | NI NP
+                     | NF
+                     | NP NF
+                     | NI NS NP;
+
+        OPCODE -> KW_OPCODE | P_OPCODE | C_OP;
+        
+        STRING  -> '"' (. - NEWLINE)* '"'
+				 | '\'' (. - NEWLINE)* '\'';
+        
+    }
+
+    rules {
+        program -> top_level*;
+
+        top_level -> macro^ | line^;
+        
+        macro -> def_macro^ | single_macro^ | multi_macro^;
+        def_macro -> KW_DEFINE! NAME line;
+        single_macro -> macro_head line;
+		multi_macro -> macro_head ':'! {line+} KW_ENDMACRO!;
+		macro_head -> KW_MACRO! NAME '('! ({(NAME (','! NAME)*)?}) ')'!;
+
+        line -> label? (directive | statement | memory)? NEWLINE!;
+        
+        label -> identifier ':'!;
+
+        directive ->
+              KW_REPEAT expression ','! statement
+            | KW_INCLUDE STRING KW_AS! NAME
+            | KW_LIBNAME NAME
+            | KW_ORG expression
+			| KW_NLO | KW_PRIVILEGED;
+
+        statement -> initialized^ | uninitialized^ | instruction^ | expression^;
+
+        initialized -> (KW_DB | KW_DW | KW_DP) {expression (','! expression)*};
+        uninitialized -> (KW_RESB | KW_RESW | KW_RESP) expression;
+
+        instruction ->
+              OPCODE
+            | OPCODE arg
+            | OPCODE arg ','! arg;
+
+        arg -> (KW_BYTE | KW_WORD | KW_PTR)? (expression | memory);
+
+        memory -> '['! expression ']'!;
+
+        expression -> exp_or^;
+        exp_or -> exp_or OP_OR^ exp_xor | exp_xor^;
+        exp_xor -> exp_xor OP_XOR^ exp_and | exp_and^;
+        exp_and -> exp_and OP_AND^ exp_shift | exp_shift^;
+        exp_shift -> exp_shift (OP_SHL | OP_SHR | OP_SAR)^ exp_add | exp_add^;
+        exp_add -> exp_add (OP_ADD | OP_SUB)^ exp_mul | exp_mul^;
+        exp_mul -> exp_mul (OP_MUL | OP_DIV | OP_MOD)^ exp_unary | exp_unary^;
+        exp_unary -> (OP_NOT | OP_SUB )^ exp_val | exp_val^;
+        exp_val ->
+              '('! expression^ ')'!
+            | invocation^
+            | relative^
+            | REGISTER^
+            | INTEGER^
+			| STRING^
+            | identifier^;
+        
+        relative ->
+              OP_CREL^ identifier?
+            | OP_PREL^ identifier?
+			| OP_SREL^ identifier?;
+
+        invocation -> NAME '('! {expression (','! expression)*} ')'!;
+
+        identifier -> NAME^ | LOCAL^ | MACROLOCAL^;
+    }
+}
