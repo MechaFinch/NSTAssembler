@@ -386,7 +386,7 @@ public class ASMInstruction implements ASMComponent {
                 rim |= this.packType == ASMPacking.FOURS ? 0b10_000_000 : 0;
             } else {
                 // From operand sizes
-                if(sourceSize == 1 || destSize == 1 || (dgroup.sourceIsWide && sourceSize == 2)) {
+                if((sourceSize == 1 && this.op != Opcode.LEA_RIM) || destSize == 1 || (dgroup.sourceIsWide && sourceSize == 2)) {
                     rim |= 0b10_000_000;
                 }
             }
@@ -483,7 +483,7 @@ public class ASMInstruction implements ASMComponent {
                     int scale = hasIndex ? 1 : 0;
                     
                     // Handle scale since it needs resolving
-                    if(mem.getScale() != null) {
+                    if(hasIndex && mem.getScale() != null) {
                         scale = (int) expectResolvedValue(mem.getScale(), resolver);
                         
                         if(!(scale == 1 || scale == 2 || scale == 4)) {
@@ -732,8 +732,7 @@ public class ASMInstruction implements ASMComponent {
                  JA_I8, JBE_I8, JG_I8, JGE_I8, JL_I8, JLE_I8,
                  JC_RIM, JNC_RIM, JS_RIM, JNS_RIM, JO_RIM, JNO_RIM, JZ_RIM, JNZ_RIM,
                  JA_RIM, JBE_RIM, JG_RIM, JGE_RIM, JL_RIM, JLE_RIM,
-                 CALL_I8, CALL_I16, CALL_I32, CALL_RIM,
-                 CMP_RIM, CMPW_RIM, MOVS_RIM
+                 CALL_I8, CALL_I16, CALL_I32, CALL_RIM, MOVS_RIM
                 -> true;
             default -> false;
         };

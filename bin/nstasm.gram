@@ -214,8 +214,8 @@ grammar NSTAssembler {
 
         OPCODE -> KW_OPCODE | P_OPCODE | C_OP;
         
-        STRING  -> '"' (. - NEWLINE)* '"'
-				 | '\'' (. - NEWLINE)* '\'';
+        STRING  -> '"' (. - (NEWLINE | '"'))* '"'
+				 | '\'' (. - (NEWLINE | '\''))* '\'';
         
     }
 

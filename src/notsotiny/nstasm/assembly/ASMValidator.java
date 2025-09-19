@@ -170,7 +170,9 @@ public class ASMValidator {
         
         if(dg.hasSource && dg.hasDestination && destSize != 0 && sourceSize != 0 && !dg.isPacked) {
             if(dg.destIsWide) {
-                if(dg.sourceIsWide) {
+                if(dg == DecodingGroup.RIM_LEA) {
+                    // Lea source can be any size
+                } else if(dg.sourceIsWide) {
                     // Must match
                     if(destSize != sourceSize) {
                         // EI8 source?

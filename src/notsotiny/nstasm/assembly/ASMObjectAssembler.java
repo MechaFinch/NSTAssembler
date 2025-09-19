@@ -64,9 +64,10 @@ public class ASMObjectAssembler {
         
         ASMResolver rState = new ASMResolver(initialComponentStarts, initialComponentEnds, initialComponentPrevInsts, initialLabelOffsetMap);
         
-        int iter = -1;
+        int resolutionIters = -1;
+        int optimizeIters = 0;
         while(true) {
-            LOG.finer("Performing resolution pass " + iter);
+            LOG.finer("Performing resolution pass " + (resolutionIters + optimizeIters));
             
             // Resolve with current offsets
             try {
@@ -79,18 +80,20 @@ public class ASMObjectAssembler {
             
             // is the resolution in steady state
             if(!rState.changed) {
+                optimizeIters++;
                 boolean changed = ASMOptimizer.optimizeWidth(object, rState.instructionImmediates, options);
                 
                 if(!changed) {
                     break;
                 }
+            } else {
+                resolutionIters++;
             }
             
             // iterate
-            iter++;
             rState = new ASMResolver(rState);
             
-            if(iter > options.maxResolutionIterations()) {
+            if(resolutionIters > options.maxResolutionIterations() || optimizeIters > options.maxResolutionIterations()) {
                 LOG.severe("Resolution did not converge within maximum iterations");
                 throw new AssemblyException();
             }

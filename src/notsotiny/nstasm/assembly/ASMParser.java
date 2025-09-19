@@ -348,7 +348,10 @@ public class ASMParser {
             // Strings are allowed here
             if(vNode.getSymbol().getID() == NstassemblerLexer.ID.TERMINAL_STRING) {
                 // Add characters
-                for(char c : vNode.getValue().toCharArray()) {
+                String str = vNode.getValue();
+                str = str.substring(1, str.length() - 1);
+                
+                for(char c : str.toCharArray()) {
                     values.add(new ASMConstant(c));
                 }
             } else {
