@@ -132,9 +132,27 @@ public class ASMValidator {
             }
         }
         
+        // LEA does it's own thing
+        if(dg == DecodingGroup.RIM_LEA) {
+            // Destination must be r32
+            if(destSize != 4 || !(i.getDestination().location() instanceof ASMRegister)) {
+                LOG.severe("Destination of LEA must be a 32-bit register in " + i);
+                return false;
+            }
+            
+            // Source must be memory
+            if(!(i.getSource().location() instanceof ASMMemory)) {
+                LOG.severe("Source of LEA must be memory in " + i);
+                return false;
+            }
+            
+            return true;
+        }
+        
         // Verify sizes
+        // Verify that destination is a valid size
         if(dg.hasDestination && destSize != 0 &&
-           (dg.isPacked ? destSize != 2 : (dg.destIsWide ? destSize < 2 : destSize > 2))) {
+           (dg.isPacked ? destSize != (dg.destIsWide ? 4 : 2) : (dg.destIsWide ? destSize < 2 : destSize > 2))) {
             // Can we correct it?
             if(!dg.isPacked && !dg.destIsWide && destSize > 2) {
                 // Destination arg is wide but operation destination is not. Is there a wide variant?
@@ -148,8 +166,9 @@ public class ASMValidator {
             return false;
         }
         
+        // Verify that source is a valid size
         if(dg.hasSource && sourceSize != 0 &&
-           (dg.isPacked ? sourceSize != 2 : (dg.sourceIsWide ? sourceSize < 2 : sourceSize > 2))) {
+           (dg.isPacked ? sourceSize != (dg.sourceIsWide ? 4 : 2) : (dg.sourceIsWide ? sourceSize < 2 : sourceSize > 2))) {
             // Can we correct it?
             if(!dg.isPacked && !dg.sourceIsWide && sourceSize > 2) {
                 // Source arg is wide but operation source is not. Is there a wide variant?
@@ -168,15 +187,20 @@ public class ASMValidator {
             LOG.severe("Invalid size " + sourceSize + " for source in " + i);
         }
         
-        if(dg.hasSource && dg.hasDestination && destSize != 0 && sourceSize != 0 && !dg.isPacked) {
+        // Verify that source and destination have the right relations
+        // R32 source/dest don't care about relations
+        boolean hasR32 = switch(dg) {
+            case RIM_R32S_WOD, RIM_WIDE_R32S_WOD, RIM_R32D, RIM_WIDE_R32D -> true;
+            default -> false;
+        };
+        
+        if(!hasR32 && dg.hasSource && dg.hasDestination && destSize != 0 && sourceSize != 0 && !dg.isPacked) {
             if(dg.destIsWide) {
-                if(dg == DecodingGroup.RIM_LEA) {
-                    // Lea source can be any size
-                } else if(dg.sourceIsWide) {
+                if(dg.sourceIsWide) {
                     // Must match
                     if(destSize != sourceSize) {
                         // EI8 source?
-                        if(!dg.isPacked && sourceSize == 1 && i.getSource().location() instanceof ASMValue) {
+                        if(sourceSize == 1 && i.getSource().location() instanceof ASMValue) {
                             // Source is a byte but that's invalid. Is there an EI8 variant?
                             if(tryMakeEI8(i, options)) {
                                 // Correction made. Try again
@@ -190,7 +214,7 @@ public class ASMValidator {
                 } else {
                     // source = dest / 2
                     if(sourceSize != destSize / 2) {
-                        if(!dg.isPacked && sourceSize == 1 && i.getSource().location() instanceof ASMValue) {
+                        if(sourceSize == 1 && i.getSource().location() instanceof ASMValue) {
                             // Source is a byte but that's invalid. Is there an EI8 variant?
                             if(tryMakeEI8(i, options)) {
                                 // Correction made. Try again
@@ -206,7 +230,7 @@ public class ASMValidator {
                 // normal dest wide source does not exist
                 // Must match
                 if(destSize != sourceSize) {
-                    if(!dg.isPacked && sourceSize == 1 && i.getSource().location() instanceof ASMValue) {
+                    if(sourceSize == 1 && i.getSource().location() instanceof ASMValue) {
                         // Source is a byte but that's invalid. Is there an EI8 variant?
                         if(tryMakeEI8(i, options)) {
                             // Correction made. Try again
@@ -228,20 +252,6 @@ public class ASMValidator {
         
         // Verify other specifications
         switch(dg) {
-            case RIM_LEA:
-                // Destination must be r32
-                if(destSize != 4 || !(i.getDestination().location() instanceof ASMRegister)) {
-                    LOG.severe("Destination of LEA must be a 32-bit register in " + i);
-                    return false;
-                }
-                
-                // Source must be memory
-                if(!(i.getSource().location() instanceof ASMMemory)) {
-                    LOG.severe("Source of LEA must be memory in " + i);
-                    return false;
-                }
-                break;
-                
             case RIM_RD_DO_WOD_EI8, RIM_WIDE_RD_DO_WOD_EI8:
                 // Register destination
                 if(!(i.getDestination().location() instanceof ASMRegister)) {
@@ -322,7 +332,7 @@ public class ASMValidator {
                 if(sourceIsF) {
                     newOp = switch(i.getOp()) {
                         case MOV_RIM    -> Opcode.MOV_RIM_F;
-                        case PUSH_RIM   -> Opcode.PUSH_F;
+                        case DST_RIM    -> destReg == Register.SP ? Opcode.PUSH_F : Opcode.INVALID;
                         case AND_RIM    -> Opcode.AND_RIM_F;
                         case OR_RIM     -> Opcode.OR_RIM_F;
                         case XOR_RIM    -> Opcode.XOR_RIM_F;
@@ -331,7 +341,7 @@ public class ASMValidator {
                 } else {
                     newOp = switch(i.getOp()) {
                         case MOV_RIM    -> Opcode.MOV_F_RIM;
-                        case POP_RIM    -> Opcode.POP_F;
+                        case LDI_RIM    -> sourceReg == Register.SP ? Opcode.POP_F : Opcode.INVALID;
                         case NOT_RIM    -> Opcode.NOT_F;
                         case AND_RIM    -> Opcode.AND_F_RIM;
                         case OR_RIM     -> Opcode.OR_F_RIM;
@@ -344,9 +354,9 @@ public class ASMValidator {
                 if(i.getOp() == Opcode.MOV_RIM) {
                     // Correct it
                     newOp = sourceIsPR ? Opcode.MOV_RIM_PR : Opcode.MOV_PR_RIM;
-                } else if(i.getOp() == Opcode.PUSH_RIM && sourceReg == Register.PF) {
+                } else if(i.getOp() == Opcode.DST_RIM && destReg == Register.SP && sourceReg == Register.PF) {
                     newOp = Opcode.PUSH_PF;
-                } else if(i.getOp() == Opcode.POP_RIM && destReg == Register.PF) {
+                } else if(i.getOp() == Opcode.LDI_RIM && destReg == Register.PF && sourceReg == Register.SP) {
                     newOp = Opcode.POP_PF;
                 }
 
@@ -458,10 +468,10 @@ public class ASMValidator {
                 case CMOVCC_RIM -> Opcode.CMOVWCC_RIM;
                 case MOV_RIM_BP -> Opcode.MOVW_RIM_BP;
                 case MOV_BP_RIM -> Opcode.MOVW_RIM_BP;
-                case PUSH_RIM   -> Opcode.PUSHW_RIM;
-                case RPUSH_RIM  -> Opcode.RPUSHW_RIM;
-                case POP_RIM    -> Opcode.POPW_RIM;
-                case RPOP_RIM   -> Opcode.RPOPW_RIM;
+                case LDI_RIM    -> Opcode.LDIW_RIM;
+                case DLD_RIM    -> Opcode.DLDW_RIM;
+                case STI_RIM    -> Opcode.STIW_RIM;
+                case DST_RIM    -> Opcode.DSTW_RIM;
                 case CMP_RIM_0  -> Opcode.CMPW_RIM_0;
                 case CMP_RIM_I8 -> Opcode.CMPW_RIM_I8;
                 case CMP_RIM    -> Opcode.CMPW_RIM;

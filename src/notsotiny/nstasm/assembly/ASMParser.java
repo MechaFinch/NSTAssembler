@@ -345,10 +345,13 @@ public class ASMParser {
         List<ASMValue> values = new ArrayList<>(vNodes.size());
         
         for(ASTNode vNode : vNodes) {
+            Triple<ASTNode, Integer, Integer> unTrip = unmacro(vNode, invokNode, context, true);
+            ASTNode realNode = unTrip.a;
+            
             // Strings are allowed here
-            if(vNode.getSymbol().getID() == NstassemblerLexer.ID.TERMINAL_STRING) {
+            if(realNode.getSymbol().getID() == NstassemblerLexer.ID.TERMINAL_STRING) {
                 // Add characters
-                String str = vNode.getValue();
+                String str = realNode.getValue();
                 str = str.substring(1, str.length() - 1);
                 
                 for(char c : str.toCharArray()) {
@@ -356,8 +359,10 @@ public class ASMParser {
                 }
             } else {
                 // Not a string
-                values.add(parseExpression(vNode, invokNode, context));
+                values.add(parseExpression(realNode, invokNode, context));
             }
+            
+            leave(unTrip, context);
         }
         
         // Report & add
@@ -564,6 +569,21 @@ public class ASMParser {
             ei8Val = new ASMConstant((long)(condCode | condPack));
         }
         
+        // Handle push/pop aliases
+        boolean makeSP = false;
+        
+        if(opStr.startsWith("PUSH") && !opStr.equals("PUSHA")) {
+            opStr = "DST" + opStr.substring(4);
+            makeSP = true;
+        } else if(opStr.startsWith("RPUSH")) {
+            opStr = "DST" + opStr.substring(5);
+        } else if(opStr.startsWith("POP") && !opStr.equals("POPA")) {
+            opStr = "LDI" + opStr.substring(3);
+            makeSP = true;
+        } else if(opStr.startsWith("RPOP")) {
+            opStr = "LDI" + opStr.substring(4);
+        }
+        
         // opcode string -> opcode object
         Opcode op;
         String opcodeAttempt = opStr + (ei8Val != null ? "CC" : "") + "_RIM" + (packType == ASMPacking.NONE ? "" : "P");
@@ -581,9 +601,14 @@ public class ASMParser {
                 try {
                     op = Opcode.valueOf(opStr + "_RIM32");
                 } catch(IllegalArgumentException _) {
-                    // I should really use less exceptions for this but whateverrrr
-                    logWithInvok(Level.SEVERE, children.get(0), invokNode, "Non-converted opcode " + opStr + " -> " + opcodeAttempt + " from " + opTxt);
-                    throw new AssemblyException();
+                    try {
+                        // AADJ/SADJ have RIMP but no P...4/8
+                        op = Opcode.valueOf(opStr + "_RIMP");
+                    } catch(IllegalArgumentException _) {
+                        // I should really use less exceptions for this but whateverrrr
+                        logWithInvok(Level.SEVERE, children.get(0), invokNode, "Non-converted opcode " + opStr + " -> " + opcodeAttempt + " from " + opTxt);
+                        throw new AssemblyException();
+                    }
                 }
             }
         }
@@ -605,25 +630,43 @@ public class ASMParser {
             // Parse it
             firstArgument = parseArgument(children.get(1), invokNode, context);
             
-            // Are we done?
-            if(!(op.dgroup.hasSource && op.dgroup.hasDestination)) {
-                // No second argument, yes
-                // Infer library jump/call as absolute
-                // Infer relative jump references as relative
+            // do we have an aliased argument?
+            if(makeSP) {
+                // Yes
                 switch(op) {
-                    case CALL_I8, CALL_I16, CALL_I32, CALL_RIM, JMP_I8, JMP_I16, JMP_I32, JMP_RIM, JCC_I8, JCC_RIM,
-                         JC_I8, JC_RIM, JNC_I8, JNC_RIM, JS_I8, JS_RIM, JNS_I8, JNS_RIM,
-                         JO_I8, JO_RIM, JNO_I8, JNO_RIM, JZ_I8, JZ_RIM, JNZ_I8, JNZ_RIM,
-                         JA_I8, JA_RIM, JBE_I8, JBE_RIM, JG_I8, JG_RIM, JGE_I8, JGE_RIM, JL_I8, JL_RIM, JLE_I8, JLE_RIM:
-                        if(firstArgument.location() instanceof ASMReference ref && ref.getType() == ReferenceType.NORMAL) {
-                            firstArgument = new ASMArgument(new ASMReference(ref.getName(), ReferenceType.RELATIVE_CURRENT), firstArgument.size());
-                        }
+                    case LDI_RIM, LDIW_RIM:
+                        inst = new ASMInstruction(op, firstArgument, ASMArgument.REG_SP, ei8Val, packType);
+                        break;
+                    
+                    case DST_RIM, DSTW_RIM:
+                        inst = new ASMInstruction(op, ASMArgument.REG_SP, firstArgument, ei8Val, packType);
                         break;
                     
                     default:
+                        throw new IllegalStateException("Unreachable");
                 }
-                
-                inst = new ASMInstruction(op, firstArgument, ei8Val, packType);
+            } else {
+                // No alias
+                // Are we done?
+                if(!(op.dgroup.hasSource && op.dgroup.hasDestination)) {
+                    // No second argument, yes
+                    // Infer library jump/call as absolute
+                    // Infer relative jump references as relative
+                    switch(op) {
+                        case CALL_I8, CALL_I16, CALL_I32, CALL_RIM, JMP_I8, JMP_I16, JMP_I32, JMP_RIM, JCC_I8, JCC_RIM,
+                             JC_I8, JC_RIM, JNC_I8, JNC_RIM, JS_I8, JS_RIM, JNS_I8, JNS_RIM,
+                             JO_I8, JO_RIM, JNO_I8, JNO_RIM, JZ_I8, JZ_RIM, JNZ_I8, JNZ_RIM,
+                             JA_I8, JA_RIM, JBE_I8, JBE_RIM, JG_I8, JG_RIM, JGE_I8, JGE_RIM, JL_I8, JL_RIM, JLE_I8, JLE_RIM:
+                            if(firstArgument.location() instanceof ASMReference ref && ref.getType() == ReferenceType.NORMAL) {
+                                firstArgument = new ASMArgument(new ASMReference(ref.getName(), ReferenceType.RELATIVE_CURRENT), firstArgument.size());
+                            }
+                            break;
+                        
+                        default:
+                    }
+                    
+                    inst = new ASMInstruction(op, firstArgument, ei8Val, packType);
+                }
             }
         } else if(children.size() > 1) {
             // extraneous argument(s)
@@ -632,7 +675,7 @@ public class ASMParser {
         }
         
         // Second argument
-        if(op.dgroup.hasSource && op.dgroup.hasDestination) {
+        if(op.dgroup.hasSource && op.dgroup.hasDestination && !makeSP) {
             // do we have a second arg?
             if(children.size() < 3) {
                 // no :(

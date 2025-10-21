@@ -226,13 +226,13 @@ public class ASMOptimizer {
                 }
                 return false;
             
-            case PUSH_RIM:
+            case DST_RIM:
                 /*
-                 * PUSH_<R16>   PUSH r16    1
+                 * PUSH_<R16>   DST SP, r16 1
                  */
-                if(i.getSource().location() instanceof ASMRegister ar && ar.reg().size() == 2) {
+                if(i.getDestination().location() instanceof ASMRegister dr && dr == ASMRegister.SP && i.getSource().location() instanceof ASMRegister sr && sr.reg().size() == 2) {
                     // PUSH r16
-                    Opcode newOp = switch(ar.reg()) {
+                    Opcode newOp = switch(sr.reg()) {
                         case A  -> Opcode.PUSH_A;
                         case B  -> Opcode.PUSH_B;
                         case C  -> Opcode.PUSH_C;
@@ -241,7 +241,7 @@ public class ASMOptimizer {
                         case J  -> Opcode.PUSH_J;
                         case K  -> Opcode.PUSH_K;
                         case L  -> Opcode.PUSH_L;
-                        default -> Opcode.PUSH_RIM;  // Unreachable if args validated correctly
+                        default -> Opcode.DST_RIM;  // Unreachable if args validated correctly
                     };
                     
                     if(LOG.isLoggable(Level.FINEST)) LOG.finest("Applied shortcut " + newOp + " to " + i);
@@ -251,13 +251,13 @@ public class ASMOptimizer {
                 }
                 return false;
                 
-            case PUSHW_RIM:
+            case DSTW_RIM:
                 /*
-                 * PUSHW_<R32>  PUSH r32    1
+                 * PUSHW_<R32>  DSTW SP, r32    1
                  */
-                if(i.getSource().location() instanceof ASMRegister ar && ar.reg().size() == 4) {
+                if(i.getDestination().location() instanceof ASMRegister dr && dr == ASMRegister.SP && i.getSource().location() instanceof ASMRegister sr && sr.reg().size() == 4) {
                     //PUSHW r32
-                    Opcode newOp = switch(ar.reg()) {
+                    Opcode newOp = switch(sr.reg()) {
                         case DA -> Opcode.PUSHW_DA;
                         case BC -> Opcode.PUSHW_BC;
                         case JI -> Opcode.PUSHW_JI;
@@ -265,11 +265,11 @@ public class ASMOptimizer {
                         case XP -> Opcode.PUSHW_XP;
                         case YP -> Opcode.PUSHW_YP;
                         case BP -> Opcode.PUSHW_BP;
-                        default -> Opcode.PUSHW_RIM;
+                        default -> Opcode.DSTW_RIM;
                     };
                     
                     // PUSHW SP is valid, if unlikely to be useful
-                    if(newOp != Opcode.PUSHW_RIM) {
+                    if(newOp != Opcode.DSTW_RIM) {
                         if(LOG.isLoggable(Level.FINEST)) LOG.finest("Applied shortcut " + newOp + " to " + i);
                         
                         i.setOp(newOp);
@@ -278,13 +278,13 @@ public class ASMOptimizer {
                 }
                 return false;
                 
-            case POP_RIM:
+            case LDI_RIM:
                 /*
-                 * POP_<R16>    POP r16     1
+                 * POP_<R16>    LDI r16, SP 1
                  */
-                if(i.getDestination().location() instanceof ASMRegister ar && ar.reg().size() == 2) {
+                if(i.getDestination().location() instanceof ASMRegister dr && dr.reg().size() == 2 && i.getSource().location() instanceof ASMRegister sr && sr == ASMRegister.SP) {
                     // POP r16
-                    Opcode newOp = switch(ar.reg()) {
+                    Opcode newOp = switch(dr.reg()) {
                         case A  -> Opcode.POP_A;
                         case B  -> Opcode.POP_B;
                         case C  -> Opcode.POP_C;
@@ -293,7 +293,7 @@ public class ASMOptimizer {
                         case J  -> Opcode.POP_J;
                         case K  -> Opcode.POP_K;
                         case L  -> Opcode.POP_L;
-                        default -> Opcode.POP_RIM;  // Unreachable if args validated correctly
+                        default -> Opcode.LDI_RIM;  // Unreachable if args validated correctly
                     };
                     
                     if(LOG.isLoggable(Level.FINEST)) LOG.finest("Applied shortcut " + newOp + " to " + i);
@@ -303,13 +303,13 @@ public class ASMOptimizer {
                 }
                 return false;
             
-            case POPW_RIM:
+            case LDIW_RIM:
                 /*
-                 * POPW_<R32>   POPW r32    1
+                 * POPW_<R32>   LDIW r32, SP    1
                  */
-                if(i.getDestination().location() instanceof ASMRegister ar && ar.reg().size() == 4) {
+                if(i.getDestination().location() instanceof ASMRegister dr && dr.reg().size() == 4 && i.getSource().location() instanceof ASMRegister sr && sr == ASMRegister.SP) {
                     // POPW r32
-                    Opcode newOp = switch(ar.reg()) {
+                    Opcode newOp = switch(dr.reg()) {
                         case DA -> Opcode.POPW_DA;
                         case BC -> Opcode.POPW_BC;
                         case JI -> Opcode.POPW_JI;
@@ -317,11 +317,11 @@ public class ASMOptimizer {
                         case XP -> Opcode.POPW_XP;
                         case YP -> Opcode.POPW_YP;
                         case BP -> Opcode.POPW_BP;
-                        default -> Opcode.POPW_RIM;
+                        default -> Opcode.LDIW_RIM;
                     };
                     
-                    // PUSHW SP is valid, if unlikely to be useful
-                    if(newOp != Opcode.POPW_RIM) {
+                    // POPW SP is valid, if unlikely to be useful
+                    if(newOp != Opcode.LDIW_RIM) {
                         if(LOG.isLoggable(Level.FINEST)) LOG.finest("Applied shortcut " + newOp + " to " + i);
                         
                         i.setOp(newOp);

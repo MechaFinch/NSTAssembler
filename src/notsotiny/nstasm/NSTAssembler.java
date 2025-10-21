@@ -22,7 +22,6 @@ import fr.cenotelie.hime.redist.ParseError;
 import fr.cenotelie.hime.redist.ParseResult;
 import notsotiny.nstasm.asmparts.ASMObject;
 import notsotiny.nstasm.assembly.ASMObjectAssembler;
-import notsotiny.nstasm.assembly.ASMOptimizer;
 import notsotiny.nstasm.assembly.ASMParser;
 import notsotiny.nstasm.assembly.RelocationInfo;
 import notsotiny.nstasm.parser.NstassemblerLexer;

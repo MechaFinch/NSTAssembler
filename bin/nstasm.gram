@@ -124,6 +124,14 @@ grammar NSTAssembler {
                              | NR NP NO NP
                              | NR NP NO NP NW
                              | NP NO NP NA
+							 | NL ND NI
+							 | NL ND NI NW
+							 | ND NL ND
+							 | ND NL ND NW
+							 | NS NT NI
+							 | NS NT NI NW
+							 | ND NS NT
+							 | ND NS NT NW
                              | NC NM NP
                              | NC NM NP NW
                              | NN NO NT
