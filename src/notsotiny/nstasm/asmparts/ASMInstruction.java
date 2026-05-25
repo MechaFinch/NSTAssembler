@@ -159,8 +159,8 @@ public class ASMInstruction implements ASMComponent {
             case I8             -> 2;   // op imm
             case I8_EI8, I16    -> 3;   // op 2ximm
             case I32            -> 5;   // op 4ximm
-            case RIM_WOD_EI8, RIM_PACKED_EI8, RIM_WIDE_WOD_EI8, RIM_SO_EI8, RIM_WIDE_DO_EI8, RIM_DO_EI8,
-                 RIM_RS_SO_EI8, RIM_WIDE_RS_SO_EI8, RIM_RD_DO_WOD_EI8, RIM_WIDE_RD_DO_WOD_EI8 // a couple of these are smaller i think but w/e
+            case RIM_WOD_EI8, RIM_PACKED_EI8, RIM_WIDE_WOD_EI8, RIM_SO_EI8, RIM_WIDE_DO_EI8,
+                 RIM_DO_EI8, RIM_WIDE_SO_EI8, RIM_DO_WOD_EI8, RIM_WIDE_DO_WOD_EI8 // a couple of these are smaller i think but w/e
                     -> 8;   // op tim bio 5ximm
             default -> 7;   // op rim bio 4ximm 
         };
@@ -216,6 +216,14 @@ public class ASMInstruction implements ASMComponent {
                 switch(this.op) {
                     case JMPA_RIM32, CALLA_RIM32:
                         sourceSize = 4;
+                        break;
+                        
+                    case MOV_F_RIM, AND_F_RIM, OR_F_RIM, XOR_F_RIM:
+                        sourceSize = 2;
+                        break;
+                        
+                    case MOV_RIM_F, AND_RIM_F, OR_RIM_F, XOR_RIM_F:
+                        destSize = 2;
                         break;
                     
                     default:

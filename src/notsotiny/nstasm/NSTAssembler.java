@@ -168,6 +168,8 @@ public class NSTAssembler {
         } else {
             ExecWriter.write(objects, outDir, LOG);
         }
+        
+        LOG.info("Done!");
     }
     
     /**

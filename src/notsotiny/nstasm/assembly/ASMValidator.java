@@ -252,26 +252,11 @@ public class ASMValidator {
         
         // Verify other specifications
         switch(dg) {
-            case RIM_RD_DO_WOD_EI8, RIM_WIDE_RD_DO_WOD_EI8:
-                // Register destination
-                if(!(i.getDestination().location() instanceof ASMRegister)) {
-                    LOG.severe("Destination must be a register in " + i);
-                    return false;
-                }
-                break;
                 
             case RIM_R32D, RIM_WIDE_R32D:
                 // 32-bit register destination
                 if(destSize != 4 || !(i.getDestination().location() instanceof ASMRegister)) {
                     LOG.severe("Destination must be a 32-bit register in " + i);
-                    return false;
-                }
-                break;
-            
-            case RIM_RS_SO_EI8, RIM_WIDE_RS_SO_EI8:
-                // Register source
-                if(!(i.getSource().location() instanceof ASMRegister)) {
-                    LOG.severe("Source must be a register in " + i);
                     return false;
                 }
                 break;
@@ -342,7 +327,6 @@ public class ASMValidator {
                     newOp = switch(i.getOp()) {
                         case MOV_RIM    -> Opcode.MOV_F_RIM;
                         case LDI_RIM    -> sourceReg == Register.SP ? Opcode.POP_F : Opcode.INVALID;
-                        case NOT_RIM    -> Opcode.NOT_F;
                         case AND_RIM    -> Opcode.AND_F_RIM;
                         case OR_RIM     -> Opcode.OR_F_RIM;
                         case XOR_RIM    -> Opcode.XOR_F_RIM;
@@ -487,6 +471,7 @@ public class ASMValidator {
                 case ICC_RIM    -> Opcode.ICCW_RIM;
                 case DEC_RIM    -> Opcode.DECW_RIM;
                 case DCC_RIM    -> Opcode.DCCW_RIM;
+                case NEG_RIM    -> Opcode.NEGW_RIM;
                 default         -> Opcode.INVALID;
             };
             

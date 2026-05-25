@@ -157,6 +157,7 @@ grammar NSTAssembler {
                              | ND NE NC NW
                              | ND NC NC
                              | ND NC NC NW
+							 | NN NE NG NW
                              | NS NH NL
                              | NS NH NR
                              | NS NA NR
@@ -285,7 +286,7 @@ grammar NSTAssembler {
             | OP_PREL^ identifier?
 			| OP_SREL^ identifier?;
 
-        invocation -> NAME '('! {expression (','! expression)*} ')'!;
+        invocation -> NAME '('! { | (expression (','! expression)*) } ')'!;
 
         identifier -> NAME^ | LOCAL^ | MACROLOCAL^;
     }
