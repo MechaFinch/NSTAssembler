@@ -838,6 +838,7 @@ public class ASMOptimizer {
                     i.setOp(Opcode.CALLA_I32);
                     return true;
                 }
+                return false;
                 
             case JMP_RIM:
                 /*
@@ -947,6 +948,7 @@ public class ASMOptimizer {
                         return true;
                     }
                 }
+                return false;
                 
             case JC_RIM:
                 /*
